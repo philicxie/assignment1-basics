@@ -24,25 +24,26 @@ def initialize_pair_frequency(pretoken_freq: dict[str, int]) -> dict[tuple[bytes
 
 class BPETokenizer:
     def __init__(self, input_path=None, vocab_size=255, special_tokens=None):
-        if special_tokens is None:
-            special_tokens = ["<|endoftext|>"]
 
         self.merges = []
         self.merge_dict = {}
+        self.special_tokens = []
         self.input_path = input_path
 
         self.vocab_size = vocab_size
-        self.special_tokens = special_tokens
+        if special_tokens:
+            self.special_tokens = special_tokens
+            for i, token in enumerate(special_tokens):
+                self.vocab[DEFAULT_TOKEN_NUM + i] = token.encode("utf-8")
         self.encode_cache = {}
         self.vocab = {i: bytes([i]) for i in range(DEFAULT_TOKEN_NUM)}
         self.vocab_reverse = {}
-        for i, token in enumerate(special_tokens):
-            self.vocab[DEFAULT_TOKEN_NUM + i] = token.encode("utf-8")
+
 
     def init_from(self, vocab, merges, special_tokens=None):
         self.merges = merges
         self.vocab = vocab
-        self.special_tokens = special_tokens
+        self.special_tokens = sorted(special_tokens, key=len, reverse=True)
         self.merge_dict = {pair:idx for idx, pair in enumerate(merges)}
         self.vocab_reverse = {v:k for k, v in self.vocab.items()}
 
