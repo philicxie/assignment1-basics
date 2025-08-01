@@ -1,7 +1,6 @@
 import collections
 
 import regex as re
-from sympy.testing.runtests_pytest import split_pattern
 
 PRETOKEN_PAT = r"""'(?:[sdmt]|ll|ve|re)| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+"""
 DEFAULT_TOKEN_NUM = 256
