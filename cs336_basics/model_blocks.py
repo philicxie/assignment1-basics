@@ -46,3 +46,29 @@ class RMSNorm(nn.Module):
 
         result = einsum(x / rms, self.weight, '... d, d -> ... d')
         return result.to(self.dtype)
+
+class SwiGLU(nn.Module):
+    def __init__(self, d_model: int, d_ff: int, device=None, dtype=None):
+        super().__init__()
+        self.d_model = d_model
+        self.d_ff = d_ff
+        self.dtype = dtype
+        self.device = device
+        self.w1 = nn.Parameter(torch.randn(d_ff, d_model, device=device, dtype=dtype), requires_grad=True)
+        self.w2 = nn.Parameter(torch.randn(d_model, d_ff, device=device, dtype=dtype), requires_grad=True)
+        self.w3 = nn.Parameter(torch.randn(d_ff, d_model, device=device, dtype=dtype), requires_grad=True)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        # x.shape [4, 12, 64]
+        # w1.shape [128, 64]
+        print(self.d_model, self.d_ff)
+        print(x.shape, self.w1.shape)
+        w1x = einsum(self.w1, x, 'd_ff d_model, ... d_model -> ... d_ff') # w1x shape: [4, 12, 128]
+        silu = w1x / (1 + torch.exp(-w1x))
+        print("silu:", silu.shape) # silu shape: [4, 12, 128]
+
+        w3x = einsum(self.w3, x, 'd_ff d_model, ... d_model -> ... d_ff') # w3x shape: [4, 12, 128]
+        ffn = einsum(self.w2, silu * w3x, 'd_model d_ff, ... d_ff -> ... d_model')
+        return ffn
+
+
