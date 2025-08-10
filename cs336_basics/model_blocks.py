@@ -72,3 +72,46 @@ class SwiGLU(nn.Module):
         return ffn
 
 
+class RotaryPositionalEmbedding(nn.Module):
+    def __init__(self, theta: float, d_k: int, max_seq_len: int, device=None):
+        super().__init__()
+        self.theta = theta
+        self.d_k = d_k
+        self.max_seq_len = max_seq_len
+        self.device = device
+        half = self.d_k // 2
+        i = torch.arange(0, self.d_k, 2)
+        print(i)
+        theta_base = self.theta ** (-1 * i / self.d_k)
+        print("theta_base:", theta_base)
+        print("theta_base shape:", theta_base.shape)
+        self.cos = torch.cos(theta_base).unsqueeze(-1).expand(-1, half).reshape(-1, self.d_k)
+        self.sin = torch.sin(theta_base).unsqueeze(-1).expand(-1, half).reshape(-1, self.d_k)
+
+
+        pos_indexes = torch.arange(max_seq_len, device=device)
+        dim_indexes = torch.arange(0, d_k, 2, device=device)
+        theta_base = theta ** (- dim_indexes / self.d_k)
+        angles = torch.outer(pos_indexes, theta_base)
+        print("angles:", angles.shape)
+
+        cos = torch.cos(angles)
+        sin = torch.sin(angles)
+        self.register_buffer('cos_mat', cos, persistent=False)
+        self.register_buffer('sin_mat', sin, persistent=False)
+
+
+    def forward(self, x: torch.Tensor, token_positions: torch.Tensor) -> torch.Tensor:
+        # x.shape: [4, 12, 64], in_query_or_key
+        # token_positions: [ 0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11]
+        print("x.shape:", x.shape)
+        print(self.theta, self.d_k, self.max_seq_len)
+        x1, x2 = x[..., ::2], x[..., 1::2]
+        out1 = x1 * self.cos_mat - x2 * self.sin_mat
+        out2 = x1 * self.sin_mat + x2 * self.cos_mat
+        out = torch.empty_like(x)
+        out[..., ::2]  = out1
+        out[..., 1::2] = out2
+        return out
+
+
